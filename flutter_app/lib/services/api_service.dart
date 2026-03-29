@@ -1,36 +1,15 @@
-// lib/services/api_service.dart
-// HTTP client for the Task Manager backend.
-// Change ApiConfig.baseUrl to your Render URL for production.
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/task.dart';
 
-// ── Config ────────────────────────────────────────────────────────────────────
-
 class ApiConfig {
-  /// ⚠️  UPDATE THIS for your environment:
-  ///
-  /// Local dev (iOS simulator / desktop):
-  ///   static const String baseUrl = 'http://127.0.0.1:8000';
-  ///
-  /// Local dev (Android emulator):
-  ///   static const String baseUrl = 'http://10.0.2.2:8000';
-  ///
-  /// Local dev (physical device — use your machine's LAN IP):
-  ///   static const String baseUrl = 'http://192.168.x.x:8000';
-  ///
-  /// Production (Render):
-  ///   static const String baseUrl = 'https://task-manager-api.onrender.com';
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  static const String baseUrl = 'https://task-manager-api-gxv1.onrender.com';
 
-  static const Duration readTimeout  = Duration(seconds: 15);
-  static const Duration writeTimeout = Duration(seconds: 30); // covers 2s backend delay
+  static const Duration readTimeout = Duration(seconds: 15);
+  static const Duration writeTimeout = Duration(seconds: 30);
   static const int maxRetries = 2;
 }
-
-// ── Exception ─────────────────────────────────────────────────────────────────
 
 class ApiException implements Exception {
   final int statusCode;
@@ -42,18 +21,16 @@ class ApiException implements Exception {
   bool get isServerError => statusCode >= 500;
 
   String get userFacingMessage {
-    if (statusCode == 0)   return 'Could not reach the server. Check your connection.';
+    if (statusCode == 0) return 'Could not reach the server. Check your connection.';
     if (statusCode == 404) return message;
     if (statusCode == 422) return message;
-    if (isServerError)     return 'Server error. Please try again later.';
+    if (isServerError) return 'Server error. Please try again later.';
     return message;
   }
 
   @override
   String toString() => 'ApiException($statusCode): $message';
 }
-
-// ── Service ───────────────────────────────────────────────────────────────────
 
 class ApiService {
   static final http.Client _client = http.Client();
@@ -63,13 +40,12 @@ class ApiService {
     'Accept': 'application/json',
   };
 
-  // Parses the v2 error envelope { "error": true, "detail": "..." }
-  // and falls back to Pydantic validation list format.
   static ApiException _parseError(http.Response response) {
     try {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final detail = body['detail'];
       String message;
+
       if (detail is String) {
         message = detail;
       } else if (detail is List) {
@@ -82,16 +58,18 @@ class ApiService {
       } else {
         message = response.body;
       }
+
       return ApiException(statusCode: response.statusCode, message: message);
     } catch (_) {
       return ApiException(
         statusCode: response.statusCode,
-        message: response.body.isEmpty ? 'HTTP ${response.statusCode}' : response.body,
+        message: response.body.isEmpty
+            ? 'HTTP ${response.statusCode}'
+            : response.body,
       );
     }
   }
 
-  // Retries on server errors / network hiccups; never retries 4xx.
   static Future<T> _withRetry<T>(Future<T> Function() fn) async {
     int attempts = 0;
     while (true) {
@@ -113,12 +91,11 @@ class ApiService {
     }
   }
 
-  // ── GET /tasks ─────────────────────────────────────────────────────────────
   static Future<List<Task>> fetchTasks({String? status, String? search}) async {
     return _withRetry(() async {
       final params = <String, String>{};
       if (status != null && status.isNotEmpty) params['status'] = status;
-      if (search != null && search.isNotEmpty)  params['search'] = search;
+      if (search != null && search.isNotEmpty) params['search'] = search;
 
       final uri = Uri.parse('${ApiConfig.baseUrl}/tasks')
           .replace(queryParameters: params);
@@ -131,12 +108,11 @@ class ApiService {
         final List<dynamic> data = jsonDecode(response.body);
         return data.map((e) => Task.fromJson(e as Map<String, dynamic>)).toList();
       }
+
       throw _parseError(response);
     });
   }
 
-  // ── POST /tasks ────────────────────────────────────────────────────────────
-  // No retry — POST is not idempotent; avoid duplicate inserts.
   static Future<Task> createTask(Task task) async {
     try {
       final response = await _client
@@ -150,6 +126,7 @@ class ApiService {
       if (response.statusCode == 201) {
         return Task.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
       }
+
       throw _parseError(response);
     } on ApiException {
       rethrow;
@@ -160,7 +137,6 @@ class ApiService {
     }
   }
 
-  // ── PUT /tasks/{id} ────────────────────────────────────────────────────────
   static Future<Task> updateTask(Task task) async {
     return _withRetry(() async {
       final response = await _client
@@ -174,11 +150,11 @@ class ApiService {
       if (response.statusCode == 200) {
         return Task.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
       }
+
       throw _parseError(response);
     });
   }
 
-  // ── DELETE /tasks/{id} ────────────────────────────────────────────────────
   static Future<void> deleteTask(int id) async {
     return _withRetry(() async {
       final response = await _client
@@ -189,11 +165,11 @@ class ApiService {
           .timeout(ApiConfig.readTimeout);
 
       if (response.statusCode == 204) return;
+
       throw _parseError(response);
     });
   }
 
-  // ── Health check ──────────────────────────────────────────────────────────
   static Future<bool> isReachable() async {
     try {
       final response = await _client
