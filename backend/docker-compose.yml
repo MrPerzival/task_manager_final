@@ -1,0 +1,59 @@
+# docker-compose.yml — Task Manager full stack (API + PostgreSQL)
+# ─────────────────────────────────────────────────────────────────────────────
+# Quickstart:
+#   docker compose up --build
+#
+# API:   http://localhost:8000
+# Docs:  http://localhost:8000/docs
+#
+# Wipe DB and start fresh:
+#   docker compose down -v
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: task_manager_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       taskdb
+      POSTGRES_USER:     taskuser
+      POSTGRES_PASSWORD: taskpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d taskdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: task_manager_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL:    postgresql://taskuser:taskpass@db:5432/taskdb
+      ALLOWED_ORIGINS: "*"
+      LOG_LEVEL:       INFO
+      PORT:            8000
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app  # mount for hot-reload in dev; remove for production
+    command: >
+      uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+    driver: local

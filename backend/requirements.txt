@@ -1,0 +1,24 @@
+# ── Core framework ────────────────────────────────────────────────────────────
+fastapi>=0.111.0,<0.112.0
+uvicorn[standard]>=0.29.0,<1.0.0
+
+# ── Database ──────────────────────────────────────────────────────────────────
+sqlalchemy>=2.0.30,<3.0.0
+psycopg2-binary>=2.9.9,<3.0.0
+alembic>=1.13.1,<2.0.0
+
+# ── Data validation ───────────────────────────────────────────────────────────
+# Flexible range — avoids pydantic-core Rust compile failure on Python 3.14
+pydantic>=2.7.1,<3.0.0
+
+# ── Environment / config ──────────────────────────────────────────────────────
+python-dotenv>=1.0.1,<2.0.0
+
+# ── Form parsing ──────────────────────────────────────────────────────────────
+python-multipart>=0.0.9,<1.0.0
+
+# ── Testing (not installed in production) ─────────────────────────────────────
+# Install manually: pip install pytest pytest-asyncio httpx
+# pytest>=8.2.0
+# pytest-asyncio>=0.23.6
+# httpx>=0.27.0
