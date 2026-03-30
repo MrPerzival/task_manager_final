@@ -1,3 +1,4 @@
+```dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -39,6 +40,20 @@ class ApiService {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   };
+
+  // ✅ FIX: Map UI status → Backend status
+  static String _mapStatus(String status) {
+    switch (status) {
+      case "ToDo":
+        return "To-Do";
+      case "InProgress":
+        return "In Progress";
+      case "Done":
+        return "Done";
+      default:
+        return status;
+    }
+  }
 
   static ApiException _parseError(http.Response response) {
     try {
@@ -91,11 +106,18 @@ class ApiService {
     }
   }
 
+  // ✅ FIXED HERE
   static Future<List<Task>> fetchTasks({String? status, String? search}) async {
     return _withRetry(() async {
       final params = <String, String>{};
-      if (status != null && status.isNotEmpty) params['status'] = status;
-      if (search != null && search.isNotEmpty) params['search'] = search;
+
+      if (status != null && status.isNotEmpty) {
+        params['status'] = _mapStatus(status); // 🔥 FIX
+      }
+
+      if (search != null && search.isNotEmpty) {
+        params['search'] = search;
+      }
 
       final uri = Uri.parse('${ApiConfig.baseUrl}/tasks')
           .replace(queryParameters: params);
@@ -181,3 +203,4 @@ class ApiService {
     }
   }
 }
+```
